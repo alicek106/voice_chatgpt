@@ -1,3 +1,7 @@
+# pip install google-cloud-texttospeech
+# pip install google-cloud-speech
+# apt-get install python3-pyaudio 
+
 ################################################################
 # Nick Bild
 # January 2023
@@ -14,8 +18,7 @@ import pyaudio
 import wave
 from google.cloud import speech
 from google.cloud import texttospeech
-from ChatGPT_lite.ChatGPT import Chatbot
-
+from revChatGPT.V1 import Chatbot
 
 gpt_response = ""
 
@@ -30,7 +33,7 @@ def speech_to_text(speech_file):
 
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-        language_code="en-US",
+        language_code="ko-KR",
     )
 
     # Detects speech in the audio file
@@ -43,18 +46,19 @@ def speech_to_text(speech_file):
     return stt
 
 
+# __Secure-next-auth.session-token 값을 넣는다
+chatbot = Chatbot(config={
+  "session_token": "<session_token>",
+})
+
+
 def ask_chat_gpt(args, prompt):
     global gpt_response
-    chat = Chatbot(args.session_token, args.bypass_node)
-    
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(chat.wait_for_ready())
-    response = loop.run_until_complete(chat.ask(prompt))
-    chat.close()
-    loop.stop()
-    
-    gpt_response = response['answer']
+
+    for data in chatbot.ask(
+      prompt
+    ):
+        gpt_response = data['answer']
 
     return
 
@@ -68,7 +72,7 @@ def text_to_speech(tts):
 
     # Build the voice request, select the language code ("en-US") and the ssml
     voice = texttospeech.VoiceSelectionParams(
-        language_code="en-US", ssml_gender=texttospeech.SsmlVoiceGender.FEMALE
+        language_code="ko-KR", ssml_gender=texttospeech.SsmlVoiceGender.FEMALE
     )
 
     # Select the type of audio file you want returned
@@ -93,10 +97,10 @@ def text_to_speech(tts):
 def record_wav():
     form_1 = pyaudio.paInt16
     chans = 1
-    samp_rate = 16000
+    samp_rate = 44100 # 적절히 변경
     chunk = 4096
     record_secs = 3
-    dev_index = 1
+    dev_index = 2 # 적절히 변경
     wav_output_filename = 'input.wav'
 
     audio = pyaudio.PyAudio()
@@ -132,25 +136,24 @@ def record_wav():
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--session_token_file', type=str, default="openai_session.txt")
-    parser.add_argument('--bypass_node', type=str, default="https://gpt.pawan.krd")
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--session_token_file', type=str, default="openai_session.txt")
+    # parser.add_argument('--bypass_node', type=str, default="https://gpt.pawan.krd")
+    # args = parser.parse_args()
 
     # Get OpenAI credentials from file.
-    text_file = open(args.session_token_file, "r")
-    args.session_token = text_file.read()
-    text_file.close()
+    # text_file = open(args.session_token_file, "r")
+    # args.session_token = text_file.read()
+    # text_file.close()
 
     # Get WAV from microphone.
     record_wav()
 
     # Convert audio into text.
     question = speech_to_text("input.wav")
-    
     # Send text to ChatGPT.
     print("Asking: {0}".format(question))
-    asyncio.coroutine(ask_chat_gpt(args, question))
+    # asyncio.coroutine(ask_chat_gpt(args, question))
     print("Response: {0}".format(gpt_response))
 
     # Convert ChatGPT response into audio.
@@ -162,3 +165,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
